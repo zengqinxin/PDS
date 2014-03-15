@@ -16,14 +16,16 @@ class Boot(object):
         self.origPrice = 0.0
         self.currPrice = 0.0
         self.save = 0.0
+        self.url = ""
 
-    def load(self, brand, name, size, was, now):
+    def load(self, brand, name, size, was, now, url):
         self.brand = brand
         self.name = name
         self.size = size
         self.origPrice = float(was)
         self.currPrice = float(now)
-        self.save = self.origPrice - self.currPrice
+        self.save = max(self.origPrice - self.currPrice, 0)
+        self.url = url
 
     def dump(self):
         rtn = ""
@@ -33,6 +35,7 @@ class Boot(object):
         rtn += '"' +str(self.origPrice) + '",'
         rtn += '"' +str(self.currPrice) + '",'
         rtn += '"' +str(self.save) + '",'
+        rtn += '"' +self.url+'",'
         return rtn
 
 def loadPage(browser, url):
@@ -74,7 +77,10 @@ def process(browser, url):
     browser.get(url)
     bootList = browser.find_elements_by_class_name('list_productentity')
     rtnList = []
-    for boot in bootList:        
+    for boot in bootList:
+        a = boot.find_element_by_xpath('a')
+        url = a.get_attribute('href')
+        url = url.encode('ascii', 'ignore')
         descBlk = boot.find_element_by_class_name('list_description')
         wasBlk = boot.find_element_by_class_name('list_pricesalewas')
         nowBlk = boot.find_element_by_class_name('list_price')
@@ -91,7 +97,7 @@ def process(browser, url):
         now = nowBlk.text.encode('ascii', 'ignore')
         now = now.split(':')[-1]
         b = Boot()
-        b.load(brand, name, size,was, now)
+        b.load(brand, name, size,was, now,url)
         rtnList.append(b)
     return rtnList
 
@@ -103,7 +109,7 @@ def main():
     #browser = webdriver.Remote(url, webdriver.DesiredCapabilities.HTMLUNIT.copy())
     bList = process(browser, url)
     fo = open('boot.csv', 'w')
-    title = "brand, name, size, Orig, Current, Save,"
+    title = "brand, name, size, Orig, Current, Save, Url,"
     print title
     fo.write(title+"\n")
     for b in bList:
